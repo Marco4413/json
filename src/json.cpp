@@ -1,76 +1,18 @@
 #include "json/json.h"
 
 #include <cmath>
-#include <cstring>
 #include <sstream>
 
-std::string JSON::Result::GetPrettyError(const char* json, size_t viewRadius) const
+JSON::Result JSON::Element::Parse(ParsingContext& ctx, std::shared_ptr<Element>& out, bool allowDuplicateKeys, size_t maxDepth, size_t _depth)
 {
-    if (*this)
-        return "";
-    else if (Token == nullptr)
-        return Error;
-
-    const char* token = Token;
-    size_t line = 1;
-    size_t lineChar = 0;
-    for (const char* it = json; it < token; ++it) {
-        if (*it == '\r' || *it == '\n') {
-            lineChar = 0;
-            ++line;
-            continue;
-        }
-        ++lineChar;
-    }
-
-    const char* lineStart = token-lineChar;
-    for (size_t i = 0; i <= viewRadius && !(*token == '\r' || *token == '\n' || *token == '\0'); ++i, ++token);
-
-    auto lineNumber = std::to_string(line);
-    auto lineCharNumber = std::to_string(lineChar+1);
-
-    std::string errorLine(lineStart, token);
-    for (size_t i = 0; i < errorLine.length(); i++) {
-        // Remove any control character (CR-LF should not be present)
-        JSON_ASSERT(errorLine[i] != '\r' && errorLine[i] != '\n');
-        if (iscntrl((unsigned char)errorLine[i]))
-            errorLine[i] = ' ';
-    }
-
-    size_t trimmedFromError = TrimAllPrevious(errorLine, lineChar, viewRadius);
-
-    std::string error;
-    error += std::string(lineNumber.length(), ' ') + " | " + Error + '\n';
-
-    error += lineNumber + " | ";
-    if (trimmedFromError > 0)
-        error += "... ";
-    error += errorLine;
-    if (*token != '\0')
-        error += " ...";
-    error += '\n';
-
-    std::string finder(lineChar-trimmedFromError, ' ');
-    finder += '^';
-    finder += '~' + lineCharNumber;
-    error += std::string(lineNumber.length(), ' ') + " | ";
-    if (trimmedFromError > 0)
-        error += "    ";
-    error += finder;
-
-    return error;
-}
-
-JSON::Result JSON::Element::Parse(const char** buf, std::shared_ptr<Element>& out, bool allowDuplicateKeys, size_t maxDepth, size_t _depth)
-{
-    SkipWhitespaces(buf);
+    ctx.SkipWhitespaces();
 
     if (_depth >= maxDepth)
-        return JSON_RESULT(ElementParseError, "Max depth of " + std::to_string(maxDepth) + " nested elements exceeded.", *buf);
+        return JSON_RESULT(ElementParseError, "Max depth of " + std::to_string(maxDepth) + " nested elements exceeded.", ctx);
 
     bool parsed = false; { // Try parse String
         auto str = std::make_shared<String>();
-        auto res = String::Parse(buf, *str);
+        auto res = String::Parse(ctx, *str);
         if (res == ResultStatus::OK) {
             parsed = true;
             out = std::move(str);
@@ -80,7 +22,7 @@ JSON::Result JSON::Element::Parse(const char** buf, std::shared_ptr<Element>& ou
 
     if (!parsed) { // Try parse Number
         auto num = std::make_shared<Number>();
-        auto res = Number::Parse(buf, *num);
+        auto res = Number::Parse(ctx, *num);
         if (res == ResultStatus::OK) {
             parsed = true;
             out = std::move(num);
@@ -90,7 +32,7 @@ JSON::Result JSON::Element::Parse(const char** buf, std::shared_ptr<Element>& ou
 
     if (!parsed) { // Try parse Object
         auto obj = std::make_shared<Object>();
-        auto res = Object::Parse(buf, *obj, allowDuplicateKeys, maxDepth, _depth);
+        auto res = Object::Parse(ctx, *obj, allowDuplicateKeys, maxDepth, _depth);
         if (res == ResultStatus::OK) {
             parsed = true;
             out = std::move(obj);
@@ -100,7 +42,7 @@ JSON::Result JSON::Element::Parse(const char** buf, std::shared_ptr<Element>& ou
 
     if (!parsed) { // Try parse Array
         auto arr = std::make_shared<Array>();
-        auto res = Array::Parse(buf, *arr, allowDuplicateKeys, maxDepth, _depth);
+        auto res = Array::Parse(ctx, *arr, allowDuplicateKeys, maxDepth, _depth);
         if (res == ResultStatus::OK) {
             parsed = true;
             out = std::move(arr);
@@ -110,7 +52,7 @@ JSON::Result JSON::Element::Parse(const char** buf, std::shared_ptr<Element>& ou
 
     if (!parsed) { // Try parse Boolean
         auto boo = std::make_shared<Boolean>();
-        auto res = Boolean::Parse(buf, *boo);
+        auto res = Boolean::Parse(ctx, *boo);
         if (res == ResultStatus::OK) {
             parsed = true;
             out = std::move(boo);
@@ -120,7 +62,7 @@ JSON::Result JSON::Element::Parse(const char** buf, std::shared_ptr<Element>& ou
 
     if (!parsed) { // Try parse Null
         auto nul = std::make_shared<Null>();
-        auto res = Null::Parse(buf, *nul);
+        auto res = Null::Parse(ctx, *nul);
         if (res == ResultStatus::OK) {
             parsed = true;
             out = std::move(nul);
@@ -130,28 +72,27 @@ JSON::Result JSON::Element::Parse(const char** buf, std::shared_ptr<Element>& ou
 
     if (!parsed) {
         // Common mistakes
-        switch (**buf) {
+        switch (ctx.Current()) {
         case '}':
-            return JSON_RESULT(ElementParseError, "No Object to close.", *buf);
+            return JSON_RESULT(ElementParseError, "No Object to close.", ctx);
         case ']':
-            return JSON_RESULT(ElementParseError, "No Array to close.", *buf);
+            return JSON_RESULT(ElementParseError, "No Array to close.", ctx);
         default:
-            return JSON_RESULT(ElementParseError, "Expected String, Number, Boolean, Null, Object or Array.", *buf);
+            return JSON_RESULT(ElementParseError, "Expected String, Number, Boolean, Null, Object or Array.", ctx);
         }
     }
 
-    SkipWhitespaces(buf);
+    ctx.SkipWhitespaces();
 
     return ResultStatus::OK;
 }
 
-std::string JSON::String::Serialize(bool pretty, size_t indent, char indentChar, size_t maxDepth, size_t _depth) const
+std::string JSON::String::ToString() const
 {
-    (void) pretty; (void) indent; (void) indentChar; (void) maxDepth; (void) _depth;
     std::string str;
     for (size_t i = 0; i < Value.length(); ++i) {
-        unsigned char ch = Value[i];
-        if (iscntrl(ch)) {
+        char32_t ch = Value[i];
+        if (IsControlCharacter(ch)) {
             str += '\\';
             switch (ch) {
             case '\b':
@@ -191,28 +132,35 @@ std::string JSON::String::Serialize(bool pretty, size_t indent, char indentChar,
             str += '\\';
             [[fallthrough]];
         default:
-            str += ch;
+            str += EncodeUTF8(ch);
         }
     }
-    return '"' + str + '"';
+    return str;
 }
 
-JSON::Result JSON::String::Parse(const char** _buf, String& out)
+std::string JSON::String::Serialize(bool pretty, size_t indent, char indentChar, size_t maxDepth, size_t _depth) const
 {
-    const char*& buf = *_buf;
+    (void) pretty; (void) indent; (void) indentChar; (void) maxDepth; (void) _depth;
+    return '"' + ToString() + '"';
+}
 
-    if (*buf != '"')
+JSON::Result JSON::String::Parse(ParsingContext& ctx, String& out)
+{
+    char32_t ch = ctx.Current();
+    if (ch != '"')
         return ResultStatus::ParsingAborted;
 
-    while (*(++buf) != '"') {
-        if (*buf == '\0') {
-            return JSON_RESULT(StringParseError, "String was not closed.", buf);
-        } else if (IsControlCharacter((unsigned char)*buf)) {
-            return JSON_RESULT(StringParseError, "Expected character or end of string.", buf);
-        } else if (*buf == '\\') {
-            if (*(++buf) == '\0')
-                return JSON_RESULT(StringParseError, "Escape sequence not provided.", buf);
-            switch (*buf) {
+    while (true) {
+        if (!ctx.Next(ch)) {
+            return JSON_RESULT(StringParseError, "String was not closed.", ctx);
+        } else if (ch == '"') {
+            break;
+        } else if (IsControlCharacter(ch)) {
+            return JSON_RESULT(StringParseError, "Expected character or end of string.", ctx);
+        } else if (ch == '\\') {
+            if (!ctx.Next(ch))
+                return JSON_RESULT(StringParseError, "Escape sequence not provided.", ctx);
+            switch (ch) {
             case '"':
             case '\\':
             case '/':
@@ -233,30 +181,28 @@ JSON::Result JSON::String::Parse(const char** _buf, String& out)
                 out.Value += '\t';
                 continue;
             case 'u': {
-                uint16_t codepoint = 0;
+                char16_t codepoint = 0;
                 for (size_t i = 0; i < 4; i++) {
-                    unsigned char hex = tolower(*(++buf));
-                    if ((hex < 'a' || hex > 'f') && !isdigit(hex))
-                        return JSON_RESULT(StringParseError, "Unicode escape sequence expected 4 hex digits.", buf);
+                    if (!ctx.Next(ch) || !IsHex(ch))
+                        return JSON_RESULT(StringParseError, "Unicode escape sequence expected 4 hex digits.", ctx);
                     codepoint *= 16;
-                    codepoint += isdigit(hex) ? (hex - '0') : (hex - 'a' + 10);
+                    codepoint += IsDigit(ch) ? (ch - '0') : (ToLower(ch) - 'a' + 10);
                 }
                 
-                if (codepoint <= 255) {
-                    out.Value += (char)codepoint;
-                    continue;
-                }
-                
-                return JSON_RESULT(StringParseError, "Unicode characters outside the inclusive range [0, 255] are not supported.", buf);
+                out.Value += codepoint;
+                // return JSON_RESULT(StringParseError, "Unicode characters outside the inclusive range [0, 255] are not supported.", ctx);
+                continue;
             }
             default:
-                return JSON_RESULT(StringParseError, "Invalid escape sequence provided.", buf);
+                return JSON_RESULT(StringParseError, "Invalid escape sequence provided.", ctx);
             }
         }
-        out.Value += *buf;
+        out.Value += ch;
     }
 
-    ++buf; // Consume last "
+    // Consume last "
+    JSON_ASSERT(ch == '"');
+    ctx.Next(ch);
     return ResultStatus::OK;
 }
 
@@ -273,33 +219,34 @@ std::string JSON::Number::Serialize(bool pretty, size_t indent, char indentChar,
     return std::to_string(m_Integer);
 }
 
-JSON::Result JSON::Number::Parse(const char** _buf, Number& out)
+JSON::Result JSON::Number::Parse(ParsingContext& ctx, Number& out)
 {
-    const char*& buf = *_buf;
-
-    if (*buf != '-' && !isdigit((unsigned char)*buf))
+    char32_t ch = ctx.Current();
+    if (ch != '-' && !IsDigit(ch))
         return ResultStatus::ParsingAborted;
     
-    bool isNegative = *buf == '-';
+    bool isNegative = ch == '-';
+    
     if (isNegative)
-        ++buf;
+        ctx.Next(ch);
 
     int64_t integer = 0;
-    if (*buf != '0') {
-        auto res = JSON::Number::ParseInteger(_buf, false, integer, nullptr);
+    if (ch != '0') {
+        auto res = JSON::Number::ParseInteger(ctx, false, integer, nullptr);
         if (res != ResultStatus::OK)
             return res;
-    } else ++buf;
+    } else ctx.Next(ch);
 
-    bool isReal = *buf == '.';
+    ch = ctx.Current();
+    bool isReal = ch == '.';
     double fraction = 0.0;
     if (isReal) {
-        ++buf;
+        ctx.Next(ch);
 
         int64_t intFraction = 0;
         size_t digits = 0;
 
-        auto res = JSON::Number::ParseInteger(_buf, false, intFraction, &digits);
+        auto res = JSON::Number::ParseInteger(ctx, false, intFraction, &digits);
         if (res != ResultStatus::OK)
             return res;
         
@@ -307,12 +254,13 @@ JSON::Result JSON::Number::Parse(const char** _buf, Number& out)
         JSON_ASSERT(fraction < 1.0);
     }
 
+    ch = ctx.Current();
     double exponent = 1.0;
-    if (*buf == 'e' || *buf == 'E') {
-        ++buf;
+    if (ch == 'e' || ch == 'E') {
+        ctx.Next(ch);
 
         int64_t intExponent = 0;
-        auto res = JSON::Number::ParseInteger(_buf, true, intExponent);
+        auto res = JSON::Number::ParseInteger(ctx, true, intExponent);
         if (res != ResultStatus::OK)
             return res;
         
@@ -329,29 +277,28 @@ JSON::Result JSON::Number::Parse(const char** _buf, Number& out)
     return ResultStatus::OK;
 }
 
-JSON::Result JSON::Number::ParseInteger(const char** _buf, bool allowSign, int64_t& out, size_t* digits)
+JSON::Result JSON::Number::ParseInteger(ParsingContext& ctx, bool allowSign, int64_t& out, size_t* digits)
 {
-    const char*& buf = *_buf;
-
-    bool hasSign = *buf == '-' || *buf == '+';
+    char32_t ch = ctx.Current();
+    bool hasSign = ch == '-' || ch == '+';
     if (hasSign && !allowSign)
-        return JSON_RESULT(NumberParseError, "Sign is not allowed here.", buf);
+        return JSON_RESULT(NumberParseError, "Sign is not allowed here.", ctx);
 
-    if (!hasSign && !isdigit((unsigned char)*buf))
+    if (!hasSign && !IsDigit(ch))
         return ResultStatus::ParsingAborted;
     
-    bool isNegative = *buf == '-';
-    if (isNegative || *buf == '+')
-        ++buf;
+    bool isNegative = ch == '-';
+    if (isNegative || ch == '+')
+        ctx.Next(ch);
     
-    if (!isdigit((unsigned char)*buf))
-        return JSON_RESULT(NumberParseError, "Expected digit, got character.", buf);
+    if (!IsDigit(ch))
+        return JSON_RESULT(NumberParseError, "Expected digit, got character.", ctx);
 
     size_t digitCount = 0;
     int64_t integer = 0;
 
-    for (; isdigit((unsigned char)*buf); ++buf, ++digitCount) {
-        int64_t digit = *buf - '0';
+    for (; IsDigit(ch); ctx.Next(ch), ++digitCount) {
+        int64_t digit = ch - '0';
         JSON_ASSERT(digit >= 0 && digit <= 9);
         integer *= 10;
         integer += digit;
@@ -363,25 +310,34 @@ JSON::Result JSON::Number::ParseInteger(const char** _buf, bool allowSign, int64
     return ResultStatus::OK;
 }
 
-JSON::Result JSON::Boolean::Parse(const char** buf, Boolean& out)
+JSON::Result JSON::Boolean::Parse(ParsingContext& ctx, Boolean& out)
 {
-    if (strncmp(*buf, "true", 4) == 0) {
-        *buf += 4;
+    if (ctx.Current() == 't') {
+        std::u32string literal;
+        if (!ctx.NextString(literal, 3) || literal != U"rue")
+            return JSON_RESULT(BooleanParseError, "Expected true.", ctx);
+        ctx.Next();
         out.Value = true;
         return ResultStatus::OK;
-    } else if (strncmp(*buf, "false", 5) == 0) {
-        *buf += 5;
+    } else if (ctx.Current() == 'f') {
+        std::u32string literal;
+        if (!ctx.NextString(literal, 4) || literal != U"alse")
+            return JSON_RESULT(BooleanParseError, "Expected false.", ctx);
+        ctx.Next();
         out.Value = false;
         return ResultStatus::OK;
     }
     return ResultStatus::ParsingAborted;
 }
 
-JSON::Result JSON::Null::Parse(const char** buf, Null& out)
+JSON::Result JSON::Null::Parse(ParsingContext& ctx, Null& out)
 {
     (void) out;
-    if (strncmp(*buf, "null", 4) == 0) {
-        *buf += 4;
+    if (ctx.Current() == 'n') {
+        std::u32string literal;
+        if (!ctx.NextString(literal, 3) || literal != U"ull")
+            return JSON_RESULT(NullParseError, "Expected null.", ctx);
+        ctx.Next();
         return ResultStatus::OK;
     }
     return ResultStatus::ParsingAborted;
@@ -418,56 +374,59 @@ std::string JSON::Object::Serialize(bool pretty, size_t indent, char indentChar,
     return '{' + str + '}';
 }
 
-JSON::Result JSON::Object::Parse(const char** _buf, Object& out, bool allowDuplicateKeys, size_t maxDepth, size_t _depth)
+JSON::Result JSON::Object::Parse(ParsingContext& ctx, Object& out, bool allowDuplicateKeys, size_t maxDepth, size_t _depth)
 {
-    const char*& buf = *_buf;
-
-    if (*buf != '{')
+    char32_t ch = ctx.Current();
+    if (ch != '{')
         return ResultStatus::ParsingAborted;
-    ++buf;
+    ctx.Next(ch);
 
-    SkipWhitespaces(_buf);
-    if (*buf == '}') {
-        ++buf;
+    ctx.SkipWhitespaces();
+    ch = ctx.Current();
+
+    if (ch == '}') {
+        ctx.Next(ch);
         return ResultStatus::OK;
     }
 
     while (true) {
         String key;
         { // Parse Key
-            auto res = String::Parse(_buf, key);
+            auto res = String::Parse(ctx, key);
             if (res != ResultStatus::OK)
                 return res;
         }
         
-        SkipWhitespaces(_buf);
-        if (*buf != ':')
-            return JSON_RESULT(ObjectParseError, "Expected key-value pair, only key provided.", buf);
-        ++buf;
+        ctx.SkipWhitespaces();
+        ch = ctx.Current();
+        if (ch != ':')
+            return JSON_RESULT(ObjectParseError, "Expected key-value pair, only key provided.", ctx);
+        ctx.Next(ch);
         
         std::shared_ptr<Element> value = nullptr;
         { // Parse Value
-            auto res = Element::Parse(_buf, value, allowDuplicateKeys, maxDepth, _depth+1);
+            auto res = Element::Parse(ctx, value, allowDuplicateKeys, maxDepth, _depth+1);
             if (res != ResultStatus::OK)
                 return res;
         }
 
         if (!allowDuplicateKeys && out.Value.find(key.Value) != out.Value.end())
-            return JSON_RESULT(ObjectParseError, "Found duplicate key.", buf);
+            return JSON_RESULT(ObjectParseError, "Found duplicate key.", ctx);
 
         out.Value[key.Value] = value;
 
-        if (*buf == '}')
+        ch = ctx.Current();
+        if (ch == '}')
             break;
-        else if (*buf != ',')
-            return JSON_RESULT(ObjectParseError, "Expected end of object '}' or ',' to define a new pair.", buf);
-        ++buf;
-        SkipWhitespaces(_buf);
+        else if (ch != ',')
+            return JSON_RESULT(ObjectParseError, "Expected end of object '}' or ',' to define a new pair.", ctx);
+        ctx.Next(ch);
+        ctx.SkipWhitespaces();
     }
 
-    JSON_ASSERT(*buf == '}');
+    JSON_ASSERT(ctx.Current() == '}');
+    ctx.Next(ch);
 
-    ++buf;
     return ResultStatus::OK;
 }
 
@@ -499,55 +458,63 @@ std::string JSON::Array::Serialize(bool pretty, size_t indent, char indentChar, 
     return '[' + str + ']';
 }
 
-JSON::Result JSON::Array::Parse(const char** _buf, Array& out, bool allowDuplicateKeys, size_t maxDepth, size_t _depth)
+JSON::Result JSON::Array::Parse(ParsingContext& ctx, Array& out, bool allowDuplicateKeys, size_t maxDepth, size_t _depth)
 {
-    const char*& buf = *_buf;
-
-    if (*buf != '[')
+    char32_t ch = ctx.Current();
+    if (ch != '[')
         return ResultStatus::ParsingAborted;
-    ++buf;
+    ctx.Next(ch);
 
-    SkipWhitespaces(_buf);
-    if (*buf == ']') {
-        ++buf;
+    ctx.SkipWhitespaces();
+    ch = ctx.Current();
+    if (ch == ']') {
+        ctx.Next(ch);
         return ResultStatus::OK;
     }
 
     while (true) {
         std::shared_ptr<Element> value = nullptr;
         { // Parse Value
-            auto res = Element::Parse(_buf, value, allowDuplicateKeys, maxDepth, _depth+1);
+            auto res = Element::Parse(ctx, value, allowDuplicateKeys, maxDepth, _depth+1);
             if (res != ResultStatus::OK)
                 return res;
         }
 
         out.Value.push_back(value);
 
-        if (*buf == ']')
+        ch = ctx.Current();
+        if (ch == ']')
             break;
-        else if (*buf != ',')
-            return JSON_RESULT(ArrayParseError, "Expected end of array ']' or ',' to define a new value.", buf);
-        ++buf;
+        else if (ch != ',')
+            return JSON_RESULT(ArrayParseError, "Expected end of array ']' or ',' to define a new value.", ctx);
+        ctx.Next(ch);
     }
 
-    JSON_ASSERT(*buf == ']');
+    JSON_ASSERT(ctx.Current() == ']');
+    ctx.Next(ch);
 
-    ++buf;
     return ResultStatus::OK;
 }
 
-JSON::Result JSON::Parse(const char* buf, std::shared_ptr<Element>& out, bool allowDuplicateKeys, size_t maxDepth)
+JSON::Result JSON::Parse(const std::string& json, std::shared_ptr<Element>& out, bool allowDuplicateKeys, size_t maxDepth)
 {
-    Result result = JSON::Element::Parse(&buf, out, allowDuplicateKeys, maxDepth);
-    if (result && *buf != '\0') {
+    ParsingContext ctx(json);
+
+    char32_t ch;
+    if (!ctx.Next(ch))
+        return JSON_RESULT(JSONParseError, "Empty JSON.", ctx);
+
+    Result result = JSON::Element::Parse(ctx, out, allowDuplicateKeys, maxDepth);
+    if (result && !ctx.IsEOF()) {
+        ch = ctx.Current();
         // Common mistakes
-        switch (*buf) {
+        switch (ch) {
         case '}':
-            return JSON_RESULT(JSONParseError, "No Object to close.", buf);
+            return JSON_RESULT(JSONParseError, "No Object to close.", ctx);
         case ']':
-            return JSON_RESULT(JSONParseError, "No Array to close.", buf);
+            return JSON_RESULT(JSONParseError, "No Array to close.", ctx);
         default:
-            return JSON_RESULT(JSONParseError, "Expected end of JSON.", buf);
+            return JSON_RESULT(JSONParseError, "Expected end of JSON.", ctx);
         }
     }
     return result;

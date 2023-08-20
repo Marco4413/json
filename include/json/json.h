@@ -3,92 +3,15 @@
 #ifndef _JSON_H
 #define _JSON_H
 
-#include <cstdio>
-#include <cstdlib>
+#include "json/base.h"
+
 #include <memory>
 #include <string>
 #include <unordered_map>
 #include <vector>
 
-#define JSON_ASSERT(cond) \
-    do { \
-        if (!(cond)) { \
-            std::printf("%s:%d: Assert (%s) failed.\n", __FILE__, __LINE__, #cond); \
-            std::exit(1); \
-        } \
-    } while (false)
-
-#ifdef JSON_DEBUG
-
-#define JSON_RESULT(status, error, token) \
-    JSON::Result(JSON::ResultStatus:: status, std::string(__FILE__) + ":" + std::to_string(__LINE__) + ": " + (error), (token))
-
-#else // JSON_DEBUG
-
-#define JSON_RESULT(status, error, token) \
-    JSON::Result(JSON::ResultStatus:: status, (error), (token))
-
-#endif // JSON_DEBUG
-
 namespace JSON
 {
-    inline static size_t TrimAllPrevious(std::string& str, size_t index, size_t count)
-    {
-        if (index < count)
-            return 0;
-        size_t trimmed = index-count;
-        str = str.substr(trimmed);
-        return trimmed;
-    }
-
-    // https://www.ecma-international.org/publications-and-standards/standards/ecma-404/
-    inline static bool IsControlCharacter(char ch) { return ch >= 0x00 && ch <= 0x1F; }
-
-    inline static void SkipWhitespaces(const char** buf)
-    {
-        while (**buf == ' ' || **buf == '\n' || **buf == '\r' || **buf == '\t')
-            ++(*buf);
-    }
-
-    enum class ResultStatus
-    {
-        OK,
-        ParsingAborted,
-        JSONParseError,
-        ElementParseError,
-        ObjectParseError,
-        ArrayParseError,
-        StringParseError,
-        NumberParseError,
-        BooleanParseError,
-        NullParseError,
-    };
-
-    struct Result
-    {
-    public:
-        const ResultStatus Status;
-        const std::string Error;
-        const char* const Token;
-    
-    public:
-        Result(ResultStatus status, std::string error, const char* token)
-            : Status(status), Error(error), Token(token) { }
-
-        Result(ResultStatus status, std::string error)
-            : Result(status, error, nullptr) { }
-        
-        Result(ResultStatus status)
-            : Result(status, "") { }
-
-        std::string GetPrettyError(const char* json, size_t viewRadius = 10) const;
-        
-        bool operator==(ResultStatus status) const { return Status == status; }
-        bool operator!=(ResultStatus status) const { return Status != status; }
-
-        operator bool() const { return Status == ResultStatus::OK; }
-    };
-
     enum class ElementType
     {
         Object, Array, String, Number, Boolean, Null,
@@ -110,7 +33,7 @@ namespace JSON
         case ElementType::Null:
             return "Null";
         default:
-            JSON_ASSERT(false);
+            JSON_UNREACHABLE();
         }
     }
 
@@ -150,13 +73,13 @@ namespace JSON
 
         bool operator==(ElementType type) const { return m_Type == type; }
 
-        virtual Element& operator=(const Element& other) noexcept { (void) other; JSON_ASSERT(false); }
-        virtual Element& operator=(Element&& other) noexcept { (void) other; JSON_ASSERT(false); }
+        virtual Element& operator=(const Element& other) noexcept { (void) other; JSON_ASSERT(false); return *this; }
+        virtual Element& operator=(Element&& other) noexcept { (void) other; JSON_ASSERT(false); return *this; }
 
-        virtual std::shared_ptr<Element> At(const std::string& key) { (void) key; return nullptr; }
-        virtual const std::shared_ptr<Element> At(const std::string& key) const { (void) key; return nullptr; }
-        std::shared_ptr<Element> operator[](const std::string& key) { return At(key); }
-        const std::shared_ptr<Element> operator[](const std::string& key) const { return At(key); }
+        virtual std::shared_ptr<Element> At(const std::u32string& key) { (void) key; return nullptr; }
+        virtual const std::shared_ptr<Element> At(const std::u32string& key) const { (void) key; return nullptr; }
+        std::shared_ptr<Element> operator[](const std::u32string& key) { return At(key); }
+        const std::shared_ptr<Element> operator[](const std::u32string& key) const { return At(key); }
 
         virtual std::shared_ptr<Element> At(size_t index) { (void) index; return nullptr; }
         virtual const std::shared_ptr<Element> At(size_t index) const { (void) index; return nullptr; }
@@ -179,7 +102,7 @@ namespace JSON
             return ToString();
         };
 
-        static Result Parse(const char** buf, std::shared_ptr<Element>& out, bool allowDuplicateKeys = false, size_t maxDepth = 255, size_t _depth = 0);
+        static Result Parse(ParsingContext& ctx, std::shared_ptr<Element>& out, bool allowDuplicateKeys = false, size_t maxDepth = 255, size_t _depth = 0);
     protected:
         Element(ElementType type)
             : m_Type(type) { }
@@ -191,13 +114,24 @@ namespace JSON
         public Element
     {
     public:
-        std::string Value;
+        std::u32string Value;
 
     public:
+        String(const std::string& str)
+            : Element(ElementType::String)
+        {
+            Value.resize(str.length());
+            for (size_t i = 0; i < str.length(); i++)
+                Value[i] = str[i];
+        }
+
         String(const char* str)
+            : String(std::string(str)) { }
+
+        String(const std::u32string& str)
             : Element(ElementType::String), Value(str) { }
 
-        String(const std::string& str)
+        String(const char32_t* str)
             : Element(ElementType::String), Value(str) { }
 
         String()
@@ -205,10 +139,9 @@ namespace JSON
 
         virtual ~String() = default;
 
-        virtual std::string ToString() const override { return Value; }
-
+        virtual std::string ToString() const override;
         virtual std::string Serialize(bool pretty = false, size_t indent = 2, char indentChar = ' ', size_t maxDepth = 255, size_t _depth = 0) const override;
-        static Result Parse(const char** buf, String& out);
+        static Result Parse(ParsingContext& ctx, String& out);
     };
 
     class Number :
@@ -245,8 +178,8 @@ namespace JSON
         virtual int64_t ToInt64() const override { return (int64_t)(m_IsReal ? m_Real : m_Integer); }
 
         virtual std::string Serialize(bool pretty = false, size_t indent = 2, char indentChar = ' ', size_t maxDepth = 255, size_t _depth = 0) const override;
-        static Result Parse(const char** buf, Number& out);
-        static Result ParseInteger(const char** buf, bool allowSign, int64_t& out, size_t* digits = nullptr);
+        static Result Parse(ParsingContext& ctx, Number& out);
+        static Result ParseInteger(ParsingContext& ctx, bool allowSign, int64_t& out, size_t* digits = nullptr);
 
     private:
         bool m_IsReal;
@@ -275,7 +208,7 @@ namespace JSON
         virtual std::string ToString() const override { return Value ? "true" : "false"; }
         virtual bool ToBool() const override { return Value; }
 
-        static Result Parse(const char** buf, Boolean& out);
+        static Result Parse(ParsingContext& ctx, Boolean& out);
     };
 
     class Null :
@@ -292,10 +225,10 @@ namespace JSON
 
         virtual std::string ToString() const override { return "null"; }
 
-        static Result Parse(const char** buf, Null& out);
+        static Result Parse(ParsingContext& ctx, Null& out);
     };
 
-    using Object_T = std::unordered_map<std::string, std::shared_ptr<Element>>;
+    using Object_T = std::unordered_map<std::u32string, std::shared_ptr<Element>>;
     class Object :
         public Element
     {
@@ -311,8 +244,8 @@ namespace JSON
 
         virtual ~Object() = default;
 
-        virtual std::shared_ptr<Element> At(const std::string& key) override { return Value[key]; }
-        virtual const std::shared_ptr<Element> At(const std::string& key) const override
+        virtual std::shared_ptr<Element> At(const std::u32string& key) override { return Value[key]; }
+        virtual const std::shared_ptr<Element> At(const std::u32string& key) const override
         {
             if (auto it = Value.find(key); it != Value.end())
                 return it->second;
@@ -322,7 +255,7 @@ namespace JSON
         virtual std::string ToString() const override { return "Object{" + std::to_string(Value.size()) + "}"; }
 
         virtual std::string Serialize(bool pretty = false, size_t indent = 2, char indentChar = ' ', size_t maxDepth = 255, size_t _depth = 0) const override;
-        static Result Parse(const char** buf, Object& out, bool allowDuplicateKeys = false, size_t maxDepth = 255, size_t _depth = 0);
+        static Result Parse(ParsingContext& ctx, Object& out, bool allowDuplicateKeys = false, size_t maxDepth = 255, size_t _depth = 0);
     };
 
     using Array_T = std::vector<std::shared_ptr<Element>>;
@@ -358,10 +291,10 @@ namespace JSON
         virtual std::string ToString() const override { return "Array[" + std::to_string(Value.size()) + "]"; }
 
         virtual std::string Serialize(bool pretty = false, size_t indent = 2, char indentChar = ' ', size_t maxDepth = 255, size_t _depth = 0) const override;
-        static Result Parse(const char** buf, Array& out, bool allowDuplicateKeys = false, size_t maxDepth = 255, size_t _depth = 0);
+        static Result Parse(ParsingContext& ctx, Array& out, bool allowDuplicateKeys = false, size_t maxDepth = 255, size_t _depth = 0);
     };
 
-    Result Parse(const char* buf, std::shared_ptr<Element>& out, bool allowDuplicateKeys = false, size_t maxDepth = 255);
+    Result Parse(const std::string& json, std::shared_ptr<Element>& out, bool allowDuplicateKeys = false, size_t maxDepth = 255);
 }
 
 #endif // _JSON_H
