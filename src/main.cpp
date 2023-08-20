@@ -53,7 +53,7 @@ int main(int argc, char** argv)
         file.close();
 
         std::shared_ptr<JSON::Element> root;
-        JSON::Result res = JSON::Parse(json, root, true, 512);
+        JSON::Result res = JSON::Parse(json, root, true, 128);
 
         if (res) {
             switch (s) {
