@@ -325,7 +325,7 @@ JSON::Result JSON::Number::Parse(const char** _buf, Number& out)
         return ResultStatus::OK;
     }
 
-    out.SetInteger(integer);
+    out.SetInteger(integer * exponent);
     return ResultStatus::OK;
 }
 
