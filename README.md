@@ -4,7 +4,7 @@ A small C++20 library that can parse and serialize JSON.
 
 ### Building
 
-You must have `premake5` and a supported building system.
+You must have `premake5` and a supported build system.
 
 Builds can be found inside the `build` folder, and include files inside the `include` directory.
 
