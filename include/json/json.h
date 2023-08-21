@@ -76,11 +76,13 @@ namespace JSON
         virtual Element& operator=(const Element& other) noexcept { (void) other; JSON_ASSERT(false); return *this; }
         virtual Element& operator=(Element&& other) noexcept { (void) other; JSON_ASSERT(false); return *this; }
 
+        virtual bool Has(const std::u32string& key) const { (void) key; return false; }
         virtual std::shared_ptr<Element> At(const std::u32string& key) { (void) key; return nullptr; }
         virtual const std::shared_ptr<Element> At(const std::u32string& key) const { (void) key; return nullptr; }
         std::shared_ptr<Element> operator[](const std::u32string& key) { return At(key); }
         const std::shared_ptr<Element> operator[](const std::u32string& key) const { return At(key); }
 
+        virtual bool Has(size_t index) const { (void) index; return false; }
         virtual std::shared_ptr<Element> At(size_t index) { (void) index; return nullptr; }
         virtual const std::shared_ptr<Element> At(size_t index) const { (void) index; return nullptr; }
         std::shared_ptr<Element> operator[](size_t index) { return At(index); }
@@ -244,6 +246,7 @@ namespace JSON
 
         virtual ~Object() = default;
 
+        virtual bool Has(const std::u32string& key) const override { auto it = Value.find(key); return it != Value.end(); }
         virtual std::shared_ptr<Element> At(const std::u32string& key) override { return Value[key]; }
         virtual const std::shared_ptr<Element> At(const std::u32string& key) const override
         {
@@ -271,6 +274,8 @@ namespace JSON
 
         // Array(const Array_T& value)
         //     : Element(ElementType::Array), Value(value) { }
+
+        virtual bool Has(size_t index) const override { return index < Value.size(); }
 
         virtual std::shared_ptr<Element> At(size_t index) override
         {
