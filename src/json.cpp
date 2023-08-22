@@ -1,6 +1,7 @@
 #include "json/json.h"
 
 #include <cmath>
+#include <limits>
 #include <sstream>
 
 JSON::Result JSON::Element::Parse(ParsingContext& ctx, std::shared_ptr<Element>& out, bool allowDuplicateKeys, size_t maxDepth, size_t _depth)
@@ -212,7 +213,8 @@ std::string JSON::Number::Serialize(bool pretty, size_t indent, char indentChar,
     if (m_IsReal) {
         // Removes unecessary decimal places and uses exponential notation when needed
         std::ostringstream ss;
-        ss << m_Real;
+        ss << std::isfinite(m_Real) ? m_Real :
+            (std::isinf(m_Real) ? std::numeric_limits<double>::max() : 0);
         return ss.str();
     }
 
