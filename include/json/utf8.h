@@ -53,6 +53,26 @@ namespace JSON
     };
 
     std::u32string DecodeUTF8(const std::string& str);
+
+    // https://cplusplus.com/reference/string/string
+    // A collection of methods from std::string that work with UTF-8 encoded strings
+    namespace UTF8
+    {
+        size_t Length(const std::string& str);
+        std::string& Erase(std::string& target, size_t pos, size_t len);
+
+        std::string& Insert(std::string& target, size_t pos, const std::string& str);
+        std::string& Insert(std::string& target, size_t pos, const std::string& str, size_t subpos, size_t sublen = -1);
+        std::string& Insert(std::string& target, size_t pos, const char* s);
+        std::string& Insert(std::string& target, size_t pos, const char* s, size_t n);
+        std::string& Insert(std::string& target, size_t pos, size_t n, char c);
+
+        std::string& Replace(std::string& target, size_t pos, size_t len, const std::string& str);
+        std::string& Replace(std::string& target, size_t pos, size_t len, const std::string& str, size_t subpos, size_t sublen = -1);
+        std::string& Replace(std::string& target, size_t pos, size_t len, const char* s);
+        std::string& Replace(std::string& target, size_t pos, size_t len, const char* s, size_t n);
+        std::string& Replace(std::string& target, size_t pos, size_t len, size_t n, char c);
+    }
 }
 
 #endif // _JSON_UTF8_H

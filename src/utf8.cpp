@@ -1,5 +1,7 @@
 #include "json/utf8.h"
 
+#include <cstring>
+
 // https://en.wikipedia.org/wiki/UTF-8
 std::string JSON::EncodeUTF8(char32_t ch)
 {
@@ -81,4 +83,92 @@ std::u32string JSON::DecodeUTF8(const std::string& str)
     while (decoder)
         decoded += decoder.Next();
     return decoded;
+}
+
+size_t JSON::UTF8::Length(const std::string& str)
+{
+    size_t len = 0;
+    UTF8StringDecoder decoder(str);
+    for (; decoder; decoder.Next(), ++len);
+    return len;
+}
+
+std::string& JSON::UTF8::Erase(std::string& target, size_t pos, size_t len)
+{
+    UTF8StringDecoder decoder(target);
+
+    for (size_t i = 0; i < pos && decoder; decoder.Next(), ++i);
+    const char* eraseStart = decoder.GetCursor();
+
+    for (size_t i = 0; i < len && decoder; decoder.Next(), ++i);
+    const char* eraseEnd = decoder.GetCursor();
+
+    size_t erasepos = eraseStart - target.c_str();
+    size_t eraselen = eraseEnd - eraseStart;
+    return target.erase(erasepos, eraselen);
+}
+
+std::string& JSON::UTF8::Insert(std::string& target, size_t pos, const std::string& str)
+{
+    return Insert(target, pos, str.c_str(), str.length());
+}
+
+std::string& JSON::UTF8::Insert(std::string& target, size_t pos, const std::string& str, size_t subpos, size_t sublen)
+{
+    UTF8StringDecoder decoder(str);
+
+    const char* substart;
+    for (size_t i = 0; i < subpos && decoder; decoder.Next(), ++i);
+    substart = decoder.GetCursor();
+
+    const char* subend;
+    for (size_t i = 0; i < sublen && decoder; decoder.Next(), ++i);
+    subend = decoder.GetCursor();
+
+    return Insert(target, pos, substart, subend-substart);
+}
+
+std::string& JSON::UTF8::Insert(std::string& target, size_t pos, const char* s)
+{
+    return Insert(target, pos, s, std::strlen(s));
+}
+
+std::string& JSON::UTF8::Insert(std::string& target, size_t pos, const char* s, size_t n)
+{
+    UTF8StringDecoder decoder(target);
+    for (size_t i = 0; i < pos && decoder; decoder.Next(), ++i);
+
+    const char* insertCursor = decoder.GetCursor();
+    size_t insertAt = insertCursor-target.c_str();
+    return target.insert(insertAt, s, n);
+}
+
+std::string& JSON::UTF8::Insert(std::string& target, size_t pos, size_t n, char c)
+{
+    return Insert(target, pos, std::string(n, c));
+}
+
+std::string& JSON::UTF8::Replace(std::string& target, size_t pos, size_t len, const std::string& str)
+{
+    return Replace(target, pos, len, str, 0);
+}
+
+std::string& JSON::UTF8::Replace(std::string& target, size_t pos, size_t len, const std::string& str, size_t subpos, size_t sublen)
+{
+    return Insert(Erase(target, pos, len), pos, str, subpos, sublen);
+}
+
+std::string& JSON::UTF8::Replace(std::string& target, size_t pos, size_t len, const char* s)
+{
+    return Replace(target, pos, len, s, std::strlen(s));
+}
+
+std::string& JSON::UTF8::Replace(std::string& target, size_t pos, size_t len, const char* s, size_t n)
+{
+    return Insert(Erase(target, pos, len), pos, s, n);
+}
+
+std::string& JSON::UTF8::Replace(std::string& target, size_t pos, size_t len, size_t n, char c)
+{
+    return Replace(target, pos, len, std::string(n, c));
 }
