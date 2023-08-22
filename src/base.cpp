@@ -12,7 +12,7 @@ std::string JSON::Result::GetPrettyError(uint32_t viewRadius) const
 
     uint32_t errorStart = ErrorColumn < viewRadius ?
         0 : ErrorColumn - viewRadius;
-    uint32_t errorEnd = std::min<uint32_t>(ErrorLine.length(), ErrorColumn + viewRadius - 1);
+    uint32_t errorEnd = std::min<uint32_t>((uint32_t)ErrorLine.length(), ErrorColumn + viewRadius - 1);
     std::string trimmedLine = ErrorLine.substr(errorStart, errorEnd-errorStart);
 
     if (errorStart != 0)
@@ -27,7 +27,7 @@ std::string JSON::Result::GetPrettyError(uint32_t viewRadius) const
     error += trimmedLine;
     error += '\n';
 
-    std::string finder(ErrorColumn + (errorStart != 0 ? -errorStart + 4 : 0), ' ');
+    std::string finder(ErrorColumn + (errorStart != 0 ? 4 - errorStart : 0), ' ');
     if (finder.length() > 0)
         finder[finder.length()-1] = '^';
     else finder += '^';
