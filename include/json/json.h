@@ -76,11 +76,11 @@ namespace JSON
         virtual Element& operator=(const Element& other) noexcept { (void) other; JSON_ASSERT(false); return *this; }
         virtual Element& operator=(Element&& other) noexcept { (void) other; JSON_ASSERT(false); return *this; }
 
-        virtual bool Has(const std::u32string& key) const { (void) key; return false; }
-        virtual std::shared_ptr<Element> At(const std::u32string& key) { (void) key; return nullptr; }
-        virtual const std::shared_ptr<Element> At(const std::u32string& key) const { (void) key; return nullptr; }
-        std::shared_ptr<Element> operator[](const std::u32string& key) { return At(key); }
-        const std::shared_ptr<Element> operator[](const std::u32string& key) const { return At(key); }
+        virtual bool Has(const std::string& key) const { (void) key; return false; }
+        virtual std::shared_ptr<Element> At(const std::string& key) { (void) key; return nullptr; }
+        virtual const std::shared_ptr<Element> At(const std::string& key) const { (void) key; return nullptr; }
+        std::shared_ptr<Element> operator[](const std::string& key) { return At(key); }
+        const std::shared_ptr<Element> operator[](const std::string& key) const { return At(key); }
 
         virtual bool Has(size_t index) const { (void) index; return false; }
         virtual std::shared_ptr<Element> At(size_t index) { (void) index; return nullptr; }
@@ -116,25 +116,20 @@ namespace JSON
         public Element
     {
     public:
-        std::u32string Value;
+        std::string Value;
 
     public:
         String(const std::string& str)
-            : Element(ElementType::String)
-        {
-            Value.resize(str.length());
-            for (size_t i = 0; i < str.length(); i++)
-                Value[i] = str[i];
-        }
+            : Element(ElementType::String), Value(str) { }
 
         String(const char* str)
             : String(std::string(str)) { }
 
         String(const std::u32string& str)
-            : Element(ElementType::String), Value(str) { }
+            : String(EncodeUTF8(str)) { }
 
         String(const char32_t* str)
-            : Element(ElementType::String), Value(str) { }
+            : String(EncodeUTF8(str)) { }
 
         String()
             : String("") { }
@@ -230,7 +225,7 @@ namespace JSON
         static Result Parse(ParsingContext& ctx, Null& out);
     };
 
-    using Object_T = std::unordered_map<std::u32string, std::shared_ptr<Element>>;
+    using Object_T = std::unordered_map<std::string, std::shared_ptr<Element>>;
     class Object :
         public Element
     {
@@ -246,9 +241,9 @@ namespace JSON
 
         virtual ~Object() = default;
 
-        virtual bool Has(const std::u32string& key) const override { auto it = Value.find(key); return it != Value.end(); }
-        virtual std::shared_ptr<Element> At(const std::u32string& key) override { return Value[key]; }
-        virtual const std::shared_ptr<Element> At(const std::u32string& key) const override
+        virtual bool Has(const std::string& key) const override { auto it = Value.find(key); return it != Value.end(); }
+        virtual std::shared_ptr<Element> At(const std::string& key) override { return Value[key]; }
+        virtual const std::shared_ptr<Element> At(const std::string& key) const override
         {
             if (auto it = Value.find(key); it != Value.end())
                 return it->second;
