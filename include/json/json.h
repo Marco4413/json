@@ -73,9 +73,6 @@ namespace JSON
 
         bool operator==(ElementType type) const { return m_Type == type; }
 
-        virtual Element& operator=(const Element& other) noexcept { (void) other; JSON_ASSERT(false); return *this; }
-        virtual Element& operator=(Element&& other) noexcept { (void) other; JSON_ASSERT(false); return *this; }
-
         virtual bool Has(const std::string& key) const { (void) key; return false; }
         virtual std::shared_ptr<Element> At(const std::string& key) { (void) key; return nullptr; }
         virtual const std::shared_ptr<Element> At(const std::string& key) const { (void) key; return nullptr; }
