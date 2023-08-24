@@ -92,7 +92,7 @@ std::string JSON::String::ToString() const
 {
     std::string str;
     str.reserve(Value.length());
-    UTF8StringDecoder decoder(Value);
+    UTF8::StringDecoder decoder(Value);
     while (decoder) {
         char32_t ch = decoder.Next();
         if (IsControlCharacter(ch)) {
@@ -135,7 +135,7 @@ std::string JSON::String::ToString() const
             str += '\\';
             [[fallthrough]];
         default:
-            str += EncodeUTF8(ch);
+            str += UTF8::Encode(ch);
         }
     }
     return str;
@@ -192,7 +192,7 @@ JSON::Result JSON::String::Parse(ParsingContext& ctx, String& out)
                     codepoint += IsDigit(ch) ? (ch - '0') : (ToLower(ch) - 'a' + 10);
                 }
 
-                out.Value += EncodeUTF8(codepoint);
+                out.Value += UTF8::Encode(codepoint);
                 // return JSON_RESULT(StringParseError, "Unicode characters outside the inclusive range [0, 255] are not supported.", ctx);
                 continue;
             }
@@ -200,7 +200,7 @@ JSON::Result JSON::String::Parse(ParsingContext& ctx, String& out)
                 return JSON_RESULT(StringParseError, "Invalid escape sequence provided.", ctx);
             }
         }
-        out.Value += EncodeUTF8(ch);
+        out.Value += UTF8::Encode(ch);
     }
 
     // Consume last "

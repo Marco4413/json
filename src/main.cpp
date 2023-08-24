@@ -5,9 +5,9 @@
 
 #include "json/json.h"
 
-std::ostream& operator<<(std::ostream& out, char32_t ch) { return out << JSON::EncodeUTF8(ch); }
-std::ostream& operator<<(std::ostream& out, const char32_t* str) { return out << JSON::EncodeUTF8(str); }
-std::ostream& operator<<(std::ostream& out, const std::u32string& str) { return out << JSON::EncodeUTF8(str); }
+std::ostream& operator<<(std::ostream& out, char32_t ch) { return out << JSON::UTF8::Encode(ch); }
+std::ostream& operator<<(std::ostream& out, const char32_t* str) { return out << JSON::UTF8::Encode(str); }
+std::ostream& operator<<(std::ostream& out, const std::u32string& str) { return out << JSON::UTF8::Encode(str); }
 
 int main(int argc, char** argv)
 {
@@ -15,11 +15,11 @@ int main(int argc, char** argv)
     (void)argv;
 
 #if 0
-    std::string json = "{ \"foo\": [ \"bar\", { \"euro\": \"\\u20AC\" }, true, null, false, 10, 20, 30e10, 22.4e-1 ] }";
+    std::string json = "{ \"foo\": [ \"bar\", { \"euro\": \"\\u20AC\\u20AC\" }, true, null, false, 10, 20, 30e10, 22.4e-1 ] }";
     std::shared_ptr<JSON::Element> root;
     JSON::Result res = JSON::Parse(json, root, true, 255);
     std::cout << res.GetPrettyError(20) << std::endl;
-    std::cout << root->Serialize(true) << std::endl;
+    std::cout << root->At("foo")->At(1)->At("euro")->AsString().View.Replace(1, 3, "EEE").Ref << std::endl;
 
 #else
     std::string json;

@@ -114,39 +114,25 @@ namespace JSON
     {
     public:
         std::string Value;
+        UTF8::StringView View;
 
     public:
         String(const std::string& str)
-            : Element(ElementType::String), Value(str) { }
+            : Element(ElementType::String), Value(str), View(Value) { }
 
         String(const char* str)
             : String(std::string(str)) { }
 
         String(const std::u32string& str)
-            : String(EncodeUTF8(str)) { }
+            : String(UTF8::Encode(str)) { }
 
         String(const char32_t* str)
-            : String(EncodeUTF8(str)) { }
+            : String(UTF8::Encode(str)) { }
 
         String()
             : String("") { }
 
         virtual ~String() = default;
-
-        size_t Length() { return JSON::UTF8::Length(Value); }
-        String& Erase(size_t pos, size_t len) { JSON::UTF8::Erase(Value, pos, len); return *this; }
-
-        String& Insert(size_t pos, const String& str) { JSON::UTF8::Insert(Value, pos, str.Value); return *this; }
-        String& Insert(size_t pos, const String& str, size_t subpos, size_t sublen = -1) { JSON::UTF8::Insert(Value, pos, str.Value, subpos, sublen); return *this; }
-        String& Insert(size_t pos, const char* s) { JSON::UTF8::Insert(Value, pos, s); return *this; }
-        String& Insert(size_t pos, const char* s, size_t n) { JSON::UTF8::Insert(Value, pos, s, n); return *this; }
-        String& Insert(size_t pos, size_t n, char c) { JSON::UTF8::Insert(Value, pos, n, c); return *this; }
-
-        String& Replace(size_t pos, size_t len, const String& str) { JSON::UTF8::Replace(Value, pos, len, str.Value); return *this; }
-        String& Replace(size_t pos, size_t len, const String& str, size_t subpos, size_t sublen = -1) { JSON::UTF8::Replace(Value, pos, len, str.Value, subpos, sublen); return *this; }
-        String& Replace(size_t pos, size_t len, const char* s) { JSON::UTF8::Replace(Value, pos, len, s); return *this; }
-        String& Replace(size_t pos, size_t len, const char* s, size_t n) { JSON::UTF8::Replace(Value, pos, len, s, n); return *this; }
-        String& Replace(size_t pos, size_t len, size_t n, char c) { JSON::UTF8::Replace(Value, pos, len, n, c); return *this; }
 
         virtual std::string ToString() const override;
         virtual std::string Serialize(bool pretty = false, size_t indent = 2, char indentChar = ' ', size_t maxDepth = 255, size_t _depth = 0) const override;

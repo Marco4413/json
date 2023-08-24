@@ -2,3 +2,6 @@
 	path = test/JSONTestSuite
 	url = https://github.com/nst/JSONTestSuite
 	shallow = true
+[submodule "libs/miniutf8"]
+	path = libs/miniutf8
+	url = https://github.com/Marco4413/miniutf8

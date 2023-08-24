@@ -18,7 +18,7 @@ project "json-dev"
    location "build"
    targetdir "%{prj.location}/%{cfg.buildcfg}"
 
-   includedirs "include"
+   includedirs { "include", "libs/miniutf8", }
    files { "src/**.cpp", "include/**.h", }
 
    filter "toolset:gcc"

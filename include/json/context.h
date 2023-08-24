@@ -5,9 +5,6 @@
 
 #include "json/utf8.h"
 
-#include <cinttypes>
-#include <string>
-
 namespace JSON
 {
     class ParsingContext
@@ -31,7 +28,7 @@ namespace JSON
     private:
         bool NextUTF8(char32_t& out);
 
-        UTF8StringDecoder m_Decoder;
+        UTF8::StringDecoder m_Decoder;
         const char* m_RowCursor;
         bool m_IsFirst = true;
         bool m_IsEndOfFile = false;

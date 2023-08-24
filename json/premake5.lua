@@ -1,3 +1,5 @@
+include "../libs"
+
 project "json"
    kind "StaticLib"
    language "C++"
@@ -6,7 +8,7 @@ project "json"
    location "../build"
    targetdir "%{prj.location}/%{cfg.buildcfg}"
 
-   includedirs "../include"
+   includedirs { "../include", "../libs/miniutf8", }
    files { "../src/**.cpp", "../include/**.h", }
    removefiles "../src/main.cpp"
 
