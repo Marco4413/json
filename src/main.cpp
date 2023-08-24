@@ -19,7 +19,7 @@ int main(int argc, char** argv)
     std::shared_ptr<JSON::Element> root;
     JSON::Result res = JSON::Parse(json, root, true, 255);
     std::cout << res.GetPrettyError(20) << std::endl;
-    std::cout << root->At("foo")->At(1)->At("euro")->AsString().View.Replace(1, 3, "EEE").Ref << std::endl;
+    std::cout << root->At("foo")->At(1)->At("euro")->AsString().GetView().Replace(1, 3, "EEE").GetRef() << std::endl;
 
 #else
     std::string json;

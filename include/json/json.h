@@ -114,11 +114,10 @@ namespace JSON
     {
     public:
         std::string Value;
-        UTF8::StringView View;
 
     public:
         String(const std::string& str)
-            : Element(ElementType::String), Value(str), View(Value) { }
+            : Element(ElementType::String), Value(str) { }
 
         String(const char* str)
             : String(std::string(str)) { }
@@ -133,6 +132,8 @@ namespace JSON
             : String("") { }
 
         virtual ~String() = default;
+
+        UTF8::StringView GetView() { return UTF8::StringView(Value); }
 
         virtual std::string ToString() const override;
         virtual std::string Serialize(bool pretty = false, size_t indent = 2, char indentChar = ' ', size_t maxDepth = 255, size_t _depth = 0) const override;
