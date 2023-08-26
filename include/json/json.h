@@ -116,16 +116,10 @@ namespace JSON
         std::string Value;
 
     public:
-        String(const std::string& str)
+        String(std::string_view str)
             : Element(ElementType::String), Value(str) { }
 
-        String(const char* str)
-            : String(std::string(str)) { }
-
-        String(const std::u32string& str)
-            : String(UTF8::Encode(str)) { }
-
-        String(const char32_t* str)
+        String(std::u32string_view str)
             : String(UTF8::Encode(str)) { }
 
         String()
@@ -293,7 +287,7 @@ namespace JSON
         static Result Parse(ParsingContext& ctx, Array& out, bool allowDuplicateKeys = false, size_t maxDepth = 255, size_t _depth = 0);
     };
 
-    Result Parse(const std::string& json, std::shared_ptr<Element>& out, bool allowDuplicateKeys = false, size_t maxDepth = 255);
+    Result Parse(std::string_view json, std::shared_ptr<Element>& out, bool allowDuplicateKeys = false, size_t maxDepth = 255);
 }
 
 #endif // _JSON_H

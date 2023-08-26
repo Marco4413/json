@@ -27,7 +27,7 @@
 #else // JSON_DEBUG
 
 #define JSON_ASSERT(cond) \
-    (void)(cond);
+    (void)(cond)
 
 #define JSON_RESULT(status, error, ctx) \
     JSON::Result(JSON::ResultStatus:: status, (error), (ctx))
@@ -67,10 +67,10 @@ namespace JSON
         const std::string ErrorLine = "";
     
     public:
-        Result(ResultStatus status, const std::string& error, const ParsingContext& ctx)
+        Result(ResultStatus status, std::string_view error, const ParsingContext& ctx)
             : Status(status), Error(error), ErrorRow(ctx.GetRow()), ErrorColumn(ctx.GetColumn()), ErrorLine(ctx.GetLine()) { }
 
-        Result(ResultStatus status, const std::string& error)
+        Result(ResultStatus status, std::string_view error)
             : Status(status), Error(error) { }
         
         Result(ResultStatus status)

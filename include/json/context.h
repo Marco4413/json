@@ -10,7 +10,7 @@ namespace JSON
     class ParsingContext
     {
     public:
-        ParsingContext(const std::string& in)
+        ParsingContext(std::string_view in)
             : m_Decoder(in), m_RowCursor(m_Decoder.GetCursor()) { }
         
         bool Next() { char32_t ch; return Next(ch); }
@@ -19,7 +19,12 @@ namespace JSON
         void SkipWhitespaces();
 
         char32_t Current() const { return m_Current; }
-        bool IsEOF() const { return m_IsEndOfFile; }
+        bool IsEOF() const
+        {
+            // Cannot use !m_Decoder to check for end of file because it is always 1 character ahead.
+            // i.e. If parsing "[]," , it would be valid because m_Decoder is looking at the character after ',' (which is EOF).
+            return m_IsEndOfFile;
+        }
         
         uint32_t GetRow() const { return m_Row; }
         uint32_t GetColumn() const { return m_Column; }

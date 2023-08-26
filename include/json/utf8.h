@@ -7,6 +7,7 @@
 #include <cinttypes>
 #include <cstring>
 #include <string>
+#include <string_view>
 
 #define MINIUTF8_EXT_INCLUDE
 namespace JSON

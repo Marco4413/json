@@ -500,7 +500,7 @@ JSON::Result JSON::Array::Parse(ParsingContext& ctx, Array& out, bool allowDupli
     return ResultStatus::OK;
 }
 
-JSON::Result JSON::Parse(const std::string& json, std::shared_ptr<Element>& out, bool allowDuplicateKeys, size_t maxDepth)
+JSON::Result JSON::Parse(std::string_view json, std::shared_ptr<Element>& out, bool allowDuplicateKeys, size_t maxDepth)
 {
     ParsingContext ctx(json);
 
