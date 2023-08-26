@@ -131,7 +131,7 @@ std::string JSON::String::ToString() const
         switch (ch) {
         case '"':
         case '\\':
-        case '/':
+        // case '/':
             str += '\\';
             [[fallthrough]];
         default:
