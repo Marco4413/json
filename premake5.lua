@@ -19,7 +19,8 @@ project "json-dev"
    targetdir "%{prj.location}/%{cfg.buildcfg}"
 
    includedirs { "include", "libs/miniutf8", }
-   files { "src/**.cpp", "include/**.h", }
+   files { "src/main.cpp" }
+   links "json"
 
    filter "toolset:gcc"
       buildoptions { "-Wall", "-Wextra", }
