@@ -13,10 +13,10 @@ project "json"
    removefiles "../src/main.cpp"
 
    filter "toolset:gcc"
-      buildoptions { "-Wall", "-Wextra", }
+      buildoptions { "-Wall", "-Wextra", "-Wpedantic", "-Werror", }
 
    filter "toolset:msc"
-      buildoptions "/W3"
+      buildoptions { "/W4", "/WX", }
 
    filter "configurations:Debug"
       defines "JSON_DEBUG"
