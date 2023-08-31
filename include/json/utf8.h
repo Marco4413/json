@@ -10,6 +10,8 @@
 #include <string_view>
 
 #define MINIUTF8_EXT_INCLUDE
+#define MINIUTF8_NO_GUARDS
+
 namespace JSON
 {
     #include "miniutf8.hpp"
