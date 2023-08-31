@@ -3,28 +3,37 @@
 #ifndef _JSON_BASE_H
 #define _JSON_BASE_H
 
+#include <csignal>
 #include <cstdio>
 #include <cstdlib>
 
 #include "json/context.h"
 
-#define JSON_UNREACHABLE() \
-    std::exit(1)
-
 #ifdef JSON_DEBUG
+
+// JSON_DEBUG_BREAK
+#if defined(_MSC_VER)
+  #include <intrin.h>
+  #define JSON_DEBUG_BREAK() __debugbreak()
+// JSON_DEBUG_BREAK
+#elif defined(SIGTRAP)
+  #define JSON_DEBUG_BREAK() std::raise(SIGTRAP)
+#else // JSON_DEBUG_BREAK
+  #define JSON_DEBUG_BREAK() (void)(0)
+#endif // JSON_DEBUG_BREAK
 
 #define JSON_ASSERT(cond) \
     do { \
         if (!(cond)) { \
             std::printf("%s:%d: Assert (%s) failed.\n", __FILE__, __LINE__, #cond); \
+            JSON_DEBUG_BREAK(); \
             std::exit(1); \
         } \
-    } while (false)
-
-#define JSON_RESULT(status, error, ctx) \
-    JSON::Result(JSON::ResultStatus:: status, std::string(__FILE__) + ":" + std::to_string(__LINE__) + ": " + (error), (ctx))
+    } while (0)
 
 #else // JSON_DEBUG
+
+#define JSON_DEBUG_BREAK() (void)(0)
 
 #define JSON_ASSERT(cond) \
     (void)(cond)
@@ -33,6 +42,15 @@
     JSON::Result(JSON::ResultStatus:: status, (error), (ctx))
 
 #endif // JSON_DEBUG
+
+#define JSON_UNREACHABLE() \
+    do { \
+        JSON_DEBUG_BREAK(); \
+        std::exit(1); \
+    } while (0)
+
+#define JSON_RESULT(status, error, ctx) \
+    JSON::Result(JSON::ResultStatus:: status, std::string(__FILE__) + ":" + std::to_string(__LINE__) + ": " + (error), (ctx))
 
 namespace JSON
 {
